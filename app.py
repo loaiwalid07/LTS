@@ -147,12 +147,15 @@ TRANSCRIPT:
 def download_video_with_audio(url: str, out_path: str):
     cmd = [
         "yt-dlp",
-        "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/mp4/best",
+        # Force a pre-combined, progressive MP4 format stream (usually 360p or 720p). 
+        # This bypasses split audio/video stream fragment 403 tracking entirely.
+        "-f", "best[ext=mp4]/progressive",
         "--no-playlist",
-        "--extractor-args", "youtube:player-client=android,web_embedded", 
-        "--user-agent", "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36",
+        # Explicitly instruct yt-dlp to drop restricted cloud-blocked developer clients
+        "--extractor-args", "youtube:player_client=default,-android_sdkless",
+        "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "--no-cache-dir",
         "--ignore-no-formats-error",
-        "--no-warnings",
         "-o", out_path,
         url,
     ]
