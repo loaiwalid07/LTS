@@ -179,14 +179,16 @@ TRANSCRIPT:
 def download_video_with_audio(url: str, out_path: str):
     cmd = [
         "yt-dlp",
-        "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
+        # Force fallback to standard progressive formats if bestvideo+bestaudio fails due to signature locks
+        "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/mp4/best",
         "--no-playlist",
-        # Force a modern player client that doesn't trigger 403 blocks on cloud instances
-        "--extractor-args", "youtube:player-client=ios,web", 
-        # Add a real browser user-agent
-        "--user-agent", "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1",
-        # Explicitly tell yt-dlp to look for deno if it's struggling with paths
-        "--js-runtimes", "deno",
+        # Switch to android clients which handle cloud IP traffic with fewer PO Token demands
+        "--extractor-args", "youtube:player-client=android,web_embedded", 
+        # Spoof a real Android device User-Agent
+        "--user-agent", "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36",
+        # Prevent yt-dlp from throwing a hard failure if specific high-res streams break signature validation
+        "--ignore-no-formats-error",
+        "--no-warnings",
         "-o", out_path,
         url,
     ]
@@ -194,7 +196,7 @@ def download_video_with_audio(url: str, out_path: str):
     if r.returncode != 0:
         raise RuntimeError(f"yt-dlp failed:\n{r.stderr}")
 
-
+    
 def cut_clip(src: str, start: float, end: float, out: str):
     cmd = [
         "ffmpeg", "-y",
