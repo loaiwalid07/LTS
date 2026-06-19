@@ -3,9 +3,9 @@ import subprocess
 import json
 import os
 import re
+import requests
 import tempfile
 import shutil
-from youtube_transcript_api import YouTubeTranscriptApi
 import google.generativeai as genai
 
 # ── Page config ───────────────────────────────────────────────────────────────
@@ -90,63 +90,31 @@ def extract_video_id(url: str):
     return m.group(1) if m else None
 
 
-def get_transcript(video_id: str) -> tuple:
+def get_free_transcript(video_id: str) -> str:
     """
-    Auto-detects available transcript language.
-    Returns (snippets_list, language_name).
-    Works with youtube-transcript-api v1.x.
+    Fetches the transcript using a free, third-party global open edge gateway.
+    This routes around cloud IP blocking natively and for free.
     """
-    ytt = YouTubeTranscriptApi()
-    transcript_list = ytt.list(video_id)
-
-    # Collect all available language codes
-    all_codes = [t.language_code for t in transcript_list]
-    if not all_codes:
-        raise RuntimeError("No transcripts available for this video.")
-
-    # Try manually created first, then generated — any language
-    chosen = None
-    try:
-        chosen = transcript_list.find_manually_created_transcript(all_codes)
-    except Exception:
-        pass
-
-    if chosen is None:
-        try:
-            chosen = transcript_list.find_generated_transcript(all_codes)
-        except Exception:
-            pass
-
-    if chosen is None:
-        # Absolute fallback: grab whatever is first
-        for t in transcript_list:
-            chosen = t
-            break
-
-    if chosen is None:
-        raise RuntimeError("No transcripts could be selected for this video.")
-
-    lang_name = chosen.language
-    fetched = chosen.fetch()
-    snippets = [
-        {"start": s.start, "duration": s.duration, "text": s.text}
-        for s in fetched
-    ]
-    return snippets, lang_name
+    gateway_url = f"https://youtube-transcript.ai/transcript/{video_id}.txt"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    }
+    
+    response = requests.get(gateway_url, headers=headers, timeout=15)
+    
+    if response.status_code != 200:
+        raise RuntimeError(
+            f"Free gateway failed to retrieve subtitles (HTTP {response.status_code}). "
+            "Please confirm the video is public and actually contains subtitles/captions."
+        )
+        
+    return response.text
 
 
-def format_transcript(transcript: list) -> str:
-    return "\n".join(
-        f"[{e['start']:.2f}s] {e['text'].replace(chr(10), ' ')}"
-        for e in transcript
-    )
-
-
-def ask_gemini(api_key: str, transcript_text: str, n_clips: int, max_dur: int, lang: str, custom_focus: str) -> list:
+def ask_gemini(api_key: str, transcript_text: str, n_clips: int, max_dur: int, custom_focus: str) -> list:
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel("gemini-2.5-flash")
     
-    # Dynamically inject custom pattern or topic guidance if provided
     focus_instruction = ""
     if custom_focus.strip():
         focus_instruction = f"\nCRITICAL INSTRUCTION: Focus purely on segments matching or discussing this specific pattern/topic: '{custom_focus.strip()}'. Reject other parts of the script if they don't align with this directive."
@@ -154,12 +122,12 @@ def ask_gemini(api_key: str, transcript_text: str, n_clips: int, max_dur: int, l
         focus_instruction = "Identify the most engaging, hook-heavy, and catchy segments for general short clips."
 
     prompt = f"""You are a viral short-video editor.
-The transcript below is in {lang}. Each line has a timestamp in seconds.
+The transcript below is structured with timestamps.
 
 {focus_instruction}
 Extract exactly {n_clips} segments (~{max_dur}s each, max {max_dur+10}s).
 
-Return ONLY a valid JSON array with exactly {n_clips} objects. No markdown blocks. No extra conversational text.
+Return ONLY a valid JSON array with exactly {n_clips} objects. No markdown formatting blocks. No extra conversational text.
 Each object must have:
   - "title": short punchy title in English (max 8 words)
   - "start": start time in seconds (float)
@@ -179,14 +147,10 @@ TRANSCRIPT:
 def download_video_with_audio(url: str, out_path: str):
     cmd = [
         "yt-dlp",
-        # Force fallback to standard progressive formats if bestvideo+bestaudio fails due to signature locks
         "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/mp4/best",
         "--no-playlist",
-        # Switch to android clients which handle cloud IP traffic with fewer PO Token demands
         "--extractor-args", "youtube:player-client=android,web_embedded", 
-        # Spoof a real Android device User-Agent
         "--user-agent", "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36",
-        # Prevent yt-dlp from throwing a hard failure if specific high-res streams break signature validation
         "--ignore-no-formats-error",
         "--no-warnings",
         "-o", out_path,
@@ -196,7 +160,7 @@ def download_video_with_audio(url: str, out_path: str):
     if r.returncode != 0:
         raise RuntimeError(f"yt-dlp failed:\n{r.stderr}")
 
-    
+
 def cut_clip(src: str, start: float, end: float, out: str):
     cmd = [
         "ffmpeg", "-y",
@@ -229,7 +193,6 @@ with st.sidebar:
     n_clips = st.slider("Number of clips", 1, 5, 3)
     max_clip_dur = st.slider("Max clip duration (sec)", 20, 90, 45)
     
-    # NEW OPTION FIELD added here:
     custom_focus = st.text_area(
         "Focus Topic / Keyword (Optional)", 
         placeholder="e.g., jokes, coding tips, unexpected plots, business advice...",
@@ -239,9 +202,9 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("""
 **Pipeline**
-1. 📝 Fetch transcript (any language)
-2. 📥 Download video (with audio)
-3. 🤖 Gemini selects best moments (applying focus parameters)
+1. 📝 Fetch transcript (Free Web-Edge API Bypasser)
+2. 📥 Download video (Android Client fallback)
+3. 🤖 Gemini selects best moments 
 4. ✂️ FFmpeg cuts clips with audio
 """)
 
@@ -267,21 +230,20 @@ if run:
     video_path = os.path.join(work_dir, "source.mp4")
 
     try:
-        # Step 1 – Transcript (auto language)
-        with st.status("📝 Fetching transcript…", expanded=True) as status:
+        # Step 1 – Transcript (Via Free Cloudflare Edge Proxy Bypass)
+        with st.status("📝 Fetching transcript via free edge bypass…", expanded=True) as status:
             try:
-                transcript, lang_name = get_transcript(video_id)
-                transcript_text = format_transcript(transcript)
+                transcript_text = get_free_transcript(video_id)
                 status.update(
-                    label=f"✅ Transcript — {len(transcript)} segments · language: {lang_name}",
+                    label="✅ Transcript retrieved successfully!",
                     state="complete",
                 )
             except Exception as e:
                 status.update(label="❌ Transcript failed", state="error")
-                st.error(f"Could not fetch transcript: {e}")
+                st.error(f"Could not retrieve transcript: {e}")
                 st.stop()
 
-        with st.expander(f"📄 View transcript ({lang_name})"):
+        with st.expander("📄 View raw transcript"):
             st.text(transcript_text[:3000] + ("…" if len(transcript_text) > 3000 else ""))
 
         # Step 2 – Download
@@ -298,8 +260,7 @@ if run:
         # Step 3 – Gemini
         with st.status("🤖 Gemini is selecting the best moments…", expanded=True) as status:
             try:
-                # Passing the custom_focus argument here
-                clips = ask_gemini(gemini_key, transcript_text, n_clips, max_clip_dur, lang_name, custom_focus)
+                clips = ask_gemini(gemini_key, transcript_text, n_clips, max_clip_dur, custom_focus)
                 status.update(label=f"✅ Gemini picked {len(clips)} clips", state="complete")
             except Exception as e:
                 status.update(label="❌ Gemini failed", state="error")
