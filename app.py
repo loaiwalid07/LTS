@@ -144,7 +144,7 @@ def format_transcript(transcript: list) -> str:
 
 def ask_gemini(api_key: str, transcript_text: str, n_clips: int, max_dur: int, lang: str, custom_focus: str) -> list:
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel("gemini-3.5-flash")
+    model = genai.GenerativeModel("gemini-2.5-flash")
     
     # Dynamically inject custom pattern or topic guidance if provided
     focus_instruction = ""
