@@ -5,7 +5,9 @@ import os
 import re
 import requests
 from youtube_transcript_api import YouTubeTranscriptApi
-import google.generativeai as genai
+from google import genai
+from google.genai import types
+from pydantic import BaseModel, Field
 
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -82,6 +84,18 @@ video { border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); }
 """, unsafe_allow_html=True)
 
 
+# ── Structured Output Definitions ─────────────────────────────────────────────
+
+class ClipSegment(BaseModel):
+    title: str = Field(description="Short punchy title in English (max 8 words)")
+    start: float = Field(description="Start time in seconds")
+    end: float = Field(description="End time in seconds")
+    reason: str = Field(description="One sentence explaining why this segment fits criteria")
+
+class ClipList(BaseModel):
+    clips: list[ClipSegment]
+
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def extract_video_id(url: str):
@@ -106,16 +120,15 @@ def get_free_transcript(video_id: str) -> str:
 
 
 def format_transcript(transcript_text: str) -> str:
-    """
-    Cleans up response strings or structure if required. 
-    Passed string returned right out of raw API.
-    """
     return transcript_text
 
 
 def ask_gemini(api_key: str, transcript_text: str, n_clips: int, max_dur: int, custom_focus: str) -> list:
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel("gemini-2.5-flash")
+    """
+    Queries Gemma 4 using the modern Google GenAI Client with explicit schema validation.
+    """
+    # Initialize modern SDK client
+    client = genai.Client(api_key=api_key)
     
     focus_instruction = ""
     if custom_focus.strip():
@@ -129,21 +142,22 @@ The transcript below contains a sequence of text segments.
 {focus_instruction}
 Extract exactly {n_clips} segments (~{max_dur}s each, max {max_dur+10}s).
 
-Return ONLY a valid JSON array with exactly {n_clips} objects. No markdown blocks. No extra conversational text.
-Each object must have:
-  - "title": short punchy title in English (max 8 words)
-  - "start": start time in seconds (float or int)
-  - "end": end time in seconds (float or int)
-  - "reason": one sentence in English explaining why this segment fits the required topic criteria
-
 TRANSCRIPT:
 {transcript_text}
 """
-    response = model.generate_content(prompt)
-    raw = response.text.strip()
-    raw = re.sub(r"^```[a-z]*\n?", "", raw)
-    raw = re.sub(r"\n?```$", "", raw)
-    return json.loads(raw)
+
+    response = client.models.generate_content(
+        model="gemma-4-31b-it",
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema=ClipList,
+            temperature=0.2
+        ),
+    )
+    
+    data = json.loads(response.text)
+    return data["clips"]
 
 
 def download_and_cut_direct(url: str, start: float, end: float, out_path: str):
@@ -181,7 +195,7 @@ def download_and_cut_direct(url: str, start: float, end: float, out_path: str):
 
 st.markdown('<div class="hero-title">🎬 YT Shorts Maker</div>', unsafe_allow_html=True)
 st.markdown(
-    '<div class="hero-sub">Paste a YouTube link → AI picks the best moments → Stream slices only the segments required</div>',
+    '<div class="hero-sub">Paste a YouTube link → Gemma 4 targets timestamps → Stream slices direct to disk</div>',
     unsafe_allow_html=True,
 )
 
@@ -195,15 +209,15 @@ with st.sidebar:
     custom_focus = st.text_area(
         "Focus Topic / Keyword (Optional)", 
         placeholder="e.g., jokes, coding tips, unexpected plots, business advice...",
-        help="Direct Gemini to track a specific pattern, theme, or keyword from the transcript."
+        help="Direct the model to track a specific pattern, theme, or keyword from the transcript."
     )
     
     st.markdown("---")
     st.markdown("""
-**New Direct Pipeline**
+**Direct Cloud Pipeline**
 1. 📝 Fetch transcript (any language)
-2. 🤖 Gemini selects best timestamps
-3. ✂️ Direct slice download (Never downloads whole video!)
+2. 🤖 Gemma 4 selects precise timestamps
+3. ✂️ Direct slice extraction (Bypasses full download 403 errors)
 """)
 
 # Input
@@ -231,10 +245,7 @@ if run:
         try:
             raw_transcript = get_free_transcript(video_id)
             transcript_text = format_transcript(raw_transcript)
-            status.update(
-                label="✅ Transcript Fetched Successfully", 
-                state="complete"
-            )
+            status.update(label="✅ Transcript Fetched Successfully", state="complete")
         except Exception as e:
             status.update(label="❌ Transcript failed", state="error")
             st.error(f"Could not fetch transcript: {e}")
@@ -243,17 +254,23 @@ if run:
     with st.expander("📄 View transcript"):
         st.text(transcript_text[:3000] + ("…" if len(transcript_text) > 3000 else ""))
 
-    # ── Step 2 – Gemini Selection ──
-    with st.status("🤖 Gemini is selecting the best moments…", expanded=True) as status:
+    # ── Step 2 – Model Selection ──
+    with st.status("🤖 Gemma 4 is calculating timestamps…", expanded=True) as status:
         try:
-            clips = ask_gemini(gemini_key, transcript_text, n_clips, max_clip_dur, custom_focus)
-            status.update(label=f"✅ Gemini picked {len(clips)} segments", state="complete")
+            clips = ask_gemini(
+                api_key=gemini_key,
+                transcript_text=transcript_text,
+                n_clips=n_clips,
+                max_dur=max_clip_dur,
+                custom_focus=custom_focus
+            )
+            status.update(label=f"✅ Model extracted {len(clips)} structured segments", state="complete")
         except Exception as e:
-            status.update(label="❌ Gemini failed", state="error")
-            st.error(f"Gemini error: {e}")
+            status.update(label="❌ AI analysis failed", state="error")
+            st.error(f"Error: {e}")
             st.stop()
 
-    # ── Step 3 – Direct Chunk Download & Slicing ──
+    # ── Step 3 – Direct Processing Slices ──
     st.markdown("---")
     st.markdown("### ✂️ Your Direct Downloaded Shorts")
 
@@ -263,11 +280,10 @@ if run:
 
         with st.status(f"📥 Direct streaming & cutting clip {i}: {clip['title']}…") as status:
             try:
-                # The pipeline directly grabs and transforms the video chunk concurrently
                 download_and_cut_direct(yt_url, clip["start"], clip["end"], clip_path)
                 status.update(label=f"✅ Clip {i} ready!", state="complete")
             except RuntimeError as e:
-                status.update(label=f"❌ Clip {i} download/cut failed", state="error")
+                status.update(label=f"❌ Clip {i} execution failed", state="error")
                 st.error(str(e))
                 continue
 
@@ -283,6 +299,7 @@ if run:
             with open(clip_path, "rb") as f:
                 video_bytes = f.read()
             st.video(video_bytes)
+            
             safe_title = re.sub(r"[^a-zA-Z0-9_]", "_", clip["title"])[:30]
             st.download_button(
                 label=f"⬇️ Download Clip {i}",
@@ -293,4 +310,4 @@ if run:
             )
         st.markdown("")
 
-    st.success(f"🎉 All requested shorts directly generated! Clips saved in: './{work_dir}/'")
+    st.success(f"🎉 All clips isolated securely! Saved under directory: './{work_dir}/'")
