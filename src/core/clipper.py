@@ -36,16 +36,7 @@ def _write_cookies_file(tmp_dir: str) -> str | None:
 def download_and_cut_direct(url: str, start: float, end: float, out_path: str) -> None:
     """
     Downloads the best video+audio stream via yt-dlp with optional YouTube
-    cookies (to bypass datacenter IP blocks on Streamlit Cloud), then cuts
-    the requested segment with FFmpeg.
-
-    PO-Token context (Oct 2024+):
-      - YouTube now requires a GVS PO Token for `ios` AND `web` clients.
-      - With valid cookies from a logged-in session, `web_safari` / `web`
-        work because the cookies provide authentication.
-      - Without cookies, we use `default,-ios,-web_creator,-web` which
-        falls back to clients that still serve unauthenticated formats
-        (mweb, tv_embedded, tv).
+    cookies, then cuts the requested segment with FFmpeg.
     """
     tmp_dir = tempfile.mkdtemp(prefix="yt_dl_")
     try:
@@ -57,9 +48,9 @@ def download_and_cut_direct(url: str, start: float, end: float, out_path: str) -
         cmd = [
             "yt-dlp",
             "--no-warnings",
-            "-f",
-            "bestvideo[ext=mp4]+bestaudio[ext=m4a]/"
-            "best[ext=mp4]/best[ext=mp4][height<=720]/best",
+            # We must use -f best to grab whatever format YouTube allows 
+            # (often webm/mhtml on blocked IPs). Forcing mp4 causes a crash.
+            "-f", "best/bestvideo+bestaudio",
             "--merge-output-format", "mp4",
             "--no-playlist",
             "--retries", "5",
@@ -68,18 +59,19 @@ def download_and_cut_direct(url: str, start: float, end: float, out_path: str) -
         ]
 
         # ─── Client strategy ────────────────────────────────────────────
-        # With cookies: web clients authenticate and bypass PO token.
-        # Without cookies: avoid PO-token-requiring clients (ios, web, web_creator).
+        # If cookies are provided, they authenticate the web clients.
+        # If no cookies, we force the 'tv' and 'mweb' clients which currently
+        # bypass the PO Token requirement.
         if cookie_file:
             cmd += [
                 "--extractor-args",
-                "youtube:player_client=web_safari,web,tv_embedded,mweb,tv",
+                "youtube:player_client=web_safari,web,tv_embedded,tv,mweb",
                 "--cookies", cookie_file,
             ]
         else:
             cmd += [
                 "--extractor-args",
-                "youtube:player_client=default,-ios,-web_creator,-web",
+                "youtube:player_client=tv,mweb,tv_embedded,-ios,-web_creator,-web",
             ]
 
         cmd.append(url)
@@ -88,16 +80,17 @@ def download_and_cut_direct(url: str, start: float, end: float, out_path: str) -
         if r.returncode != 0:
             raise RuntimeError(f"yt-dlp download failed:\n{r.stderr[-2000:]}")
 
-        if not os.path.exists(full_video):
+        # Check if the file actually downloaded properly
+        if not os.path.exists(full_video) or os.path.getsize(full_video) < 10000:
             raise RuntimeError(
-                "yt-dlp reported success but no output file was created. "
-                "This usually means every client was blocked. Check cookies."
+                "yt-dlp failed to download the video (file is empty or missing). "
+                "YouTube is blocking the server IP. Valid cookies are required in Streamlit Secrets."
             )
 
         _cut_progressive(full_video, start, duration, out_path)
 
     finally:
-        shutil.rmtree(tmp_dir, ignore_errors=True) 
+        shutil.rmtree(tmp_dir, ignore_errors=True)
  
 def _cut_progressive(
     full_path: str,
