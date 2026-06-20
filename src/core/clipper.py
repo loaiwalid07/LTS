@@ -1,100 +1,103 @@
 import shutil
 import subprocess
-import tempfile
- 
-from pytubefix import YouTube
+import tempfile 
+import os
+from youtube_transcript_api import YouTubeTranscriptApi
 
+def _write_cookies_file(tmp_dir: str) -> str | None:
+    """
+    Writes YouTube cookies from Streamlit Secrets to a Netscape-format
+    cookies.txt file that yt-dlp can consume via --cookies.
+ 
+    To set up:
+      1. Install the "Get cookies.txt LOCALLY" browser extension.
+      2. Go to youtube.com while logged in, export cookies.txt.
+      3. In Streamlit Cloud → App Settings → Secrets, add:
+           [youtube]
+           cookies = '''
+           # Netscape HTTP Cookie File
+           .youtube.com   TRUE  /  FALSE  ...
+           ...
+           '''
+      4. The app reads st.secrets["youtube"]["cookies"] at runtime.
+    Returns the path to the temp file, or None if no secret is configured.
+    """
+    try:
+        import streamlit as st
+        cookies_text = st.secrets["youtube"]["cookies"]
+        cookie_path = os.path.join(tmp_dir, "cookies.txt")
+        with open(cookie_path, "w", encoding="utf-8") as f:
+            f.write(cookies_text)
+        return cookie_path
+    except Exception:
+        return None
+ 
+ 
 def download_and_cut_direct(url: str, start: float, end: float, out_path: str) -> None:
     """
-    Downloads full video via pytubefix (pure Python, no JS runtime needed),
-    then cuts the requested segment and crops to 9:16 vertical with FFmpeg.
- 
-    Why not yt-dlp?
-      - yt-dlp requires Node.js/Deno on the server to decrypt YouTube signatures.
-      - Streamlit Cloud has neither → falls back to unencrypted URLs → YouTube 403.
-      - pytubefix handles signature decryption in pure Python.
- 
-    Stream strategy:
-      1. Try adaptive video-only (best quality, 1080p+) + adaptive audio → merge.
-      2. Fall back to progressive (video+audio, ≤720p) if adaptive unavailable.
+    Downloads the best video+audio stream via yt-dlp with optional YouTube
+    cookies (to bypass datacenter IP blocks on Streamlit Cloud), then cuts
+    the requested segment with FFmpeg.
+
+    PO-Token context (Oct 2024+):
+      - YouTube now requires a GVS PO Token for `ios` AND `web` clients.
+      - With valid cookies from a logged-in session, `web_safari` / `web`
+        work because the cookies provide authentication.
+      - Without cookies, we use `default,-ios,-web_creator,-web` which
+        falls back to clients that still serve unauthenticated formats
+        (mweb, tv_embedded, tv).
     """
     tmp_dir = tempfile.mkdtemp(prefix="yt_dl_")
     try:
-        yt = YouTube(url)
+        full_video = os.path.join(tmp_dir, "full.mp4")
         duration = end - start
- 
-        # ── Attempt 1: adaptive (best quality) ───────────────────────────
-        video_stream = (
-            yt.streams
-            .filter(adaptive=True, file_extension="mp4", only_video=True)
-            .order_by("resolution")
-            .last()
-        )
-        audio_stream = (
-            yt.streams
-            .filter(adaptive=True, only_audio=True)
-            .order_by("abr")
-            .last()
-        )
- 
-        if video_stream and audio_stream:
-            video_path = video_stream.download(output_path=tmp_dir, filename="video.mp4")
-            audio_path = audio_stream.download(output_path=tmp_dir, filename="audio.mp4")
-            _cut_and_merge(video_path, audio_path, start, duration, out_path)
- 
+
+        cookie_file = _write_cookies_file(tmp_dir)
+
+        cmd = [
+            "yt-dlp",
+            "--no-warnings",
+            "-f",
+            "bestvideo[ext=mp4]+bestaudio[ext=m4a]/"
+            "best[ext=mp4]/best[ext=mp4][height<=720]/best",
+            "--merge-output-format", "mp4",
+            "--no-playlist",
+            "--retries", "5",
+            "--fragment-retries", "5",
+            "-o", full_video,
+        ]
+
+        # ─── Client strategy ────────────────────────────────────────────
+        # With cookies: web clients authenticate and bypass PO token.
+        # Without cookies: avoid PO-token-requiring clients (ios, web, web_creator).
+        if cookie_file:
+            cmd += [
+                "--extractor-args",
+                "youtube:player_client=web_safari,web,tv_embedded,mweb,tv",
+                "--cookies", cookie_file,
+            ]
         else:
-            # ── Fallback: progressive (single file, ≤720p) ───────────────
-            prog_stream = (
-                yt.streams
-                .filter(progressive=True, file_extension="mp4")
-                .order_by("resolution")
-                .last()
+            cmd += [
+                "--extractor-args",
+                "youtube:player_client=default,-ios,-web_creator,-web",
+            ]
+
+        cmd.append(url)
+
+        r = subprocess.run(cmd, capture_output=True, text=True)
+        if r.returncode != 0:
+            raise RuntimeError(f"yt-dlp download failed:\n{r.stderr[-2000:]}")
+
+        if not os.path.exists(full_video):
+            raise RuntimeError(
+                "yt-dlp reported success but no output file was created. "
+                "This usually means every client was blocked. Check cookies."
             )
-            if prog_stream is None:
-                raise RuntimeError("No downloadable MP4 stream found for this video.")
- 
-            full_path = prog_stream.download(output_path=tmp_dir, filename="full.mp4")
-            _cut_progressive(full_path, start, duration, out_path)
- 
+
+        _cut_progressive(full_video, start, duration, out_path)
+
     finally:
-        shutil.rmtree(tmp_dir, ignore_errors=True)
- 
- 
-def _cut_and_merge(
-    video_path: str,
-    audio_path: str,
-    start: float,
-    duration: float,
-    out_path: str,
-) -> None:
-    """
-    Cut adaptive video + audio and merge into one clip.
-    No crop — output keeps the original video dimensions.
- 
-    Seek strategy: -ss AFTER -i (slow/accurate seek).
-    Fast pre-seek (-ss before -i) can land between keyframes and produce
-    0-second output because the encoder gets no complete frame to start from.
-    Using -ss after -i decodes every frame up to `start`, guaranteeing the
-    first output frame is a real keyframe.
-    """
-    cmd = [
-        "ffmpeg", "-y",
-        "-i", video_path,
-        "-i", audio_path,
-        "-ss", str(start),          # accurate seek AFTER input
-        "-t", str(duration),
-        "-map", "0:v:0",
-        "-map", "1:a:0",
-        "-c:v", "libx264",
-        "-preset", "fast",
-        "-crf", "16",
-        "-c:a", "aac",
-        "-b:a", "320k",
-        "-movflags", "+faststart",
-        out_path,
-    ]
-    _run_ffmpeg(cmd)
- 
+        shutil.rmtree(tmp_dir, ignore_errors=True) 
  
 def _cut_progressive(
     full_path: str,
@@ -104,20 +107,19 @@ def _cut_progressive(
 ) -> None:
     """
     Cut a progressive (video+audio single file) clip.
-    No crop — output keeps the original video dimensions.
- 
-    Same accurate-seek strategy: -ss after -i.
     """
     cmd = [
         "ffmpeg", "-y",
+        "-ss", str(start),          # FAST seek BEFORE input (-ss after -i is extremely slow on streamlit)
         "-i", full_path,
-        "-ss", str(start),          # accurate seek AFTER input
         "-t", str(duration),
+        "-map", "0",                # Map all available streams
+        "-sn",                      # Ignore subtitles (prevents mapping errors)
         "-c:v", "libx264",
-        "-preset", "fast",
-        "-crf", "16",
+        "-preset", "veryfast",      # Changed to veryfast for cloud speeds
+        "-crf", "23",               # Lowered CRF to save space/time
         "-c:a", "aac",
-        "-b:a", "320k",
+        "-b:a", "128k",
         "-movflags", "+faststart",
         out_path,
     ]
@@ -130,4 +132,3 @@ def _run_ffmpeg(cmd: list) -> None:
         raise RuntimeError(
             f"FFmpeg failed (exit {result.returncode}):\n{result.stderr[-2000:]}"
         )
- 
