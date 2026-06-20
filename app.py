@@ -1,13 +1,14 @@
 import streamlit as st
-import subprocess
-import json
 import os
 import re
-import requests
-from youtube_transcript_api import YouTubeTranscriptApi
-from google import genai
-from google.genai import types
-from pydantic import BaseModel, Field
+
+from src.core import (
+    extract_video_id,
+    get_free_transcript,
+    format_transcript,
+    ask_gemini,
+    download_and_cut_direct,
+)
 
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -83,114 +84,6 @@ video { border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); }
 </style>
 """, unsafe_allow_html=True)
 
-
-# ── Structured Output Definitions ─────────────────────────────────────────────
-
-class ClipSegment(BaseModel):
-    title: str = Field(description="Short punchy title in English (max 8 words)")
-    start: float = Field(description="Start time in seconds")
-    end: float = Field(description="End time in seconds")
-    reason: str = Field(description="One sentence explaining why this segment fits criteria")
-
-class ClipList(BaseModel):
-    clips: list[ClipSegment]
-
-
-# ── Helpers ───────────────────────────────────────────────────────────────────
-
-def extract_video_id(url: str):
-    m = re.search(r"(?:v=|youtu\.be/|embed/|shorts/)([A-Za-z0-9_-]{11})", url)
-    return m.group(1) if m else None
-
-
-def get_free_transcript(video_id: str) -> str:
-    """
-    Fetches the transcript using a free third-party API gateway.
-    """
-    gateway_url = f"https://youtube-transcript.ai/transcript/{video_id}.txt"
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-    }
-    response = requests.get(gateway_url, headers=headers, timeout=15)
-    if response.status_code != 200:
-        raise RuntimeError(
-            f"Free transcript engine returned status HTTP {response.status_code}."
-        )
-    return response.text
-
-
-def format_transcript(transcript_text: str) -> str:
-    return transcript_text
-
-
-def ask_gemini(api_key: str, transcript_text: str, n_clips: int, max_dur: int, custom_focus: str) -> list:
-    """
-    Queries Gemma 4 using the modern Google GenAI Client with explicit schema validation.
-    """
-    # Initialize modern SDK client
-    client = genai.Client(api_key=api_key)
-    
-    focus_instruction = ""
-    if custom_focus.strip():
-        focus_instruction = f"\nCRITICAL INSTRUCTION: Focus purely on segments matching or discussing this specific pattern/topic: '{custom_focus.strip()}'. Reject other parts of the script if they don't align with this directive."
-    else:
-        focus_instruction = "Identify the most engaging, hook-heavy, and catchy segments for general short clips."
-
-    prompt = f"""You are a viral short-video editor.
-The transcript below contains a sequence of text segments.
-
-{focus_instruction}
-Extract exactly {n_clips} segments (~{max_dur}s each, max {max_dur+10}s).
-
-TRANSCRIPT:
-{transcript_text}
-"""
-
-    response = client.models.generate_content(
-        model="gemma-4-31b-it",
-        contents=prompt,
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json",
-            response_schema=ClipList,
-            temperature=0.2
-        ),
-    )
-    
-    data = json.loads(response.text)
-    return data["clips"]
-
-
-def download_and_cut_direct(url: str, start: float, end: float, out_path: str):
-    """
-    Downloads a specific segment from YouTube directly and crops it visually 
-    to 9:16 vertical using yt-dlp's native section downloader and post-processor hooks.
-    """
-    # High-quality 9:16 rendering args passed to the output stage of FFmpeg
-    postprocessor_args = [
-        "-vf", "scale=1080:1920",
-        "-c:v", "libx264",
-        "-preset", "slow",
-        "-crf", "16",
-        "-c:a", "aac",
-        "-b:a", "320k"
-    ]
-    
-    cmd = [
-        "yt-dlp",
-        "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
-        "--no-playlist",
-        # Use yt-dlp's native frame-accurate chunk downloader
-        "--download-sections", f"*{start}-{end}",
-        # Safely pass the cropping and formatting options to the output modifier
-        "--postprocessor-args", f"ExtractAudio+VideoConvertor:{' '.join(postprocessor_args)}",
-        "-o", out_path,
-        url
-    ]
-    
-    r = subprocess.run(cmd, capture_output=True, text=True)
-    if r.returncode != 0:
-        raise RuntimeError(f"Direct clip download/cut failed via yt-dlp:\n{r.stderr}")
-    
 # ── UI ────────────────────────────────────────────────────────────────────────
 
 st.markdown('<div class="hero-title">🎬 YT Shorts Maker</div>', unsafe_allow_html=True)
