@@ -1,11 +1,14 @@
 import subprocess
+import streamlit as st
+import tempfile
+import os
 
 def download_and_cut_direct(url: str, start: float, end: float, out_path: str):
     """
-    Downloads a specific segment from YouTube directly and crops it visually 
-    to 9:16 vertical using yt-dlp's native section downloader and post-processor hooks.
+    Downloads a specific segment using yt-dlp. 
+    Dynamically uses Streamlit secrets (cloud), a local cookies.txt (local dev), 
+    or no cookies at all based on the environment.
     """
-    # High-quality 9:16 rendering args passed to the output stage of FFmpeg
     postprocessor_args = [
         "-vf", "scale=1080:1920",
         "-c:v", "libx264",
@@ -15,18 +18,49 @@ def download_and_cut_direct(url: str, start: float, end: float, out_path: str):
         "-b:a", "320k"
     ]
     
+    # Base command setup
     cmd = [
         "yt-dlp",
         "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
         "--no-playlist",
-        # Use yt-dlp's native frame-accurate chunk downloader
+        "--extractor-args", "youtube:player_client=android", # Keep the mobile bypass!
+    ]
+
+    cookie_file_path = None
+    is_temp_cookie = False
+
+    # 1. Try to load cookies from Streamlit Secrets first
+    try:
+        if "youtube" in st.secrets and "cookies" in st.secrets["youtube"]:
+            # We must manually close the file so yt-dlp can read it on Windows/Linux
+            temp_cookie_file = tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".txt")
+            temp_cookie_file.write(st.secrets["youtube"]["cookies"])
+            temp_cookie_file.close() 
+
+            cookie_file_path = temp_cookie_file.name
+            is_temp_cookie = True
+    except Exception as e:
+        st.warning(f"Could not load cookies from Streamlit secrets: {e}")
+        
+    # If we found a cookie file via either method, append it to the command
+    if cookie_file_path:
+        cmd.extend(["--cookies", cookie_file_path])
+
+    # Append the rest of the cutting and formatting arguments
+    cmd.extend([
         "--download-sections", f"*{start}-{end}",
-        # Safely pass the cropping and formatting options to the output modifier
         "--postprocessor-args", f"ExtractAudio+VideoConvertor:{' '.join(postprocessor_args)}",
         "-o", out_path,
         url
-    ]
+    ])
     
-    r = subprocess.run(cmd, capture_output=True, text=True)
-    if r.returncode != 0:
-        raise RuntimeError(f"Direct clip download/cut failed via yt-dlp:\n{r.stderr}")
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True)
+        if r.returncode != 0:
+            raise RuntimeError(f"Direct clip download/cut failed via yt-dlp:\n{r.stderr}")
+            
+    finally:
+        # CRITICAL: Only delete the file if we generated it from secrets.
+        # We don't want to accidentally delete your local cookies.txt!
+        if is_temp_cookie and cookie_file_path and os.path.exists(cookie_file_path):
+            os.remove(cookie_file_path)
