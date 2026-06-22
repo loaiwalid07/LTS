@@ -5,6 +5,7 @@ Adapted from the original Streamlit app's clipper.py.
 import glob
 import re
 import subprocess
+import sys
 from pathlib import Path
 
 from .logger import log
@@ -74,7 +75,7 @@ def download_and_cut_direct(
 
     # ── Primary command (android client) ─────────────────────────────
     cmd = [
-        'yt-dlp',
+        sys.executable, '-m', 'yt_dlp',
         '--quiet',
         '--no-warnings',
         '--extractor-args', 'youtube:player_client=android',
@@ -102,7 +103,7 @@ def download_and_cut_direct(
 
             # ── Fallback (no android client) ─────────────────────────
             fallback_cmd = [
-                'yt-dlp',
+                sys.executable, '-m', 'yt_dlp',
                 '--quiet',
                 '--no-warnings',
                 '--download-sections', f'*{start_ts}-{end_ts}',
@@ -147,7 +148,7 @@ def download_and_cut_direct(
         log.error('download_and_cut_direct | yt-dlp timed out after 300s')
         return None
     except FileNotFoundError:
-        log.error('download_and_cut_direct | yt-dlp not found — is it installed?')
+        log.error('download_and_cut_direct | yt-dlp module not found — pip install it?')
         return None
     except Exception as e:
         log.error('download_and_cut_direct | unexpected error: %s', e, exc_info=True)
