@@ -16,8 +16,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # ---------------------------------------------------------------------------
 SECRET_KEY = config('DJANGO_SECRET_KEY', default='django-insecure-dev-only-change-in-production')
 DEBUG = config('DJANGO_DEBUG', default=True, cast=bool)
-ALLOWED_HOSTS = config('DJANGO_ALLOWED_HOSTS', default='*', cast=lambda v: [h.strip() for h in v.split(',')])
-
+ALLOWED_HOSTS = [
+    'your-app.vercel.app',
+    '.vercel.app',   # wildcard for preview URLs
+    'localhost',
+    '127.0.0.1',
+]
 # ---------------------------------------------------------------------------
 # APPLICATION
 # ---------------------------------------------------------------------------
