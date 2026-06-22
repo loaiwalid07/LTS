@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Profile — VidSnap{% endblock title %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+  <h1 class="text-2xl font-display font-semibold text-luxury-900">Profile</h1>
+  <p class="mt-1 text-sm text-luxury-500">Your account details</p>
+
+  <div class="mt-8 bg-white rounded-2xl p-8 shadow-sm border border-luxury-100">
+    <div class="flex items-center gap-5 pb-6 border-b border-luxury-100">
+      <div class="w-16 h-16 rounded-full bg-gold-100 flex items-center justify-center text-xl font-display font-semibold text-gold-700">
+        {{ user.username|first|upper }}
+      </div>
+      <div>
+        <p class="text-lg font-semibold text-luxury-900">{{ user.get_full_name|default:user.username }}</p>
+        <p class="text-sm text-luxury-500">{{ user.email }}</p>
+      </div>
+    </div>
+
+    <dl class="mt-6 space-y-4 text-sm">
+      <div class="flex justify-between">
+        <dt class="text-luxury-500">Username</dt>
+        <dd class="font-medium text-luxury-900">{{ user.username }}</dd>
+      </div>
+      <div class="flex justify-between">
+        <dt class="text-luxury-500">Email</dt>
+        <dd class="font-medium text-luxury-900">{{ user.email }}</dd>
+      </div>
+      <div class="flex justify-between">
+        <dt class="text-luxury-500">Joined</dt>
+        <dd class="font-medium text-luxury-900">{{ user.date_joined|date:"F j, Y" }}</dd>
+      </div>
+    </dl>
+
+    <div class="mt-6 pt-6 border-t border-luxury-100">
+      <a href="{% url 'dashboard:home' %}"
+         class="inline-flex items-center gap-2 text-sm font-medium text-gold-600 hover:text-gold-700 transition-colors">
+        Go to Dashboard
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/>
+        </svg>
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock content %}

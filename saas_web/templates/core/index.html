@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}VidSnap — Clip Your Moments{% endblock title %}
+
+{% block content %}
+<!-- ─── Hero ────────────────────────────────────────────── -->
+<section class="relative overflow-hidden">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 sm:pt-24 pb-20 sm:pb-32">
+    <div class="text-center max-w-3xl mx-auto">
+      <span class="inline-block text-xs font-semibold tracking-widest uppercase text-blue-600 bg-blue-50 px-4 py-1.5 rounded-full mb-6">
+        Now in Early Access
+      </span>
+      <h1 class="text-4xl sm:text-5xl lg:text-6xl font-display font-semibold text-luxury-900 leading-tight tracking-tight">
+        Clip the best moments from
+        <span class="text-blue-600 italic">any</span> YouTube video.
+      </h1>
+      <p class="mt-6 text-lg sm:text-xl text-luxury-500 leading-relaxed max-w-2xl mx-auto">
+        VidSnap uses AI to find the most engaging short clips in any video —
+        ready to download and share in seconds.
+      </p>
+      <div class="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+        <a href="{% url 'accounts:register' %}"
+           class="w-full sm:w-auto inline-flex items-center justify-center px-8 py-3.5 rounded-xl bg-luxury-900 text-white text-sm font-medium hover:bg-luxury-800 transition-all shadow-lg shadow-luxury-900/10">
+          Start clipping
+          <svg class="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/>
+          </svg>
+        </a>
+        <a href="#features"
+           class="w-full sm:w-auto inline-flex items-center justify-center px-8 py-3.5 rounded-xl border border-luxury-200 text-luxury-700 text-sm font-medium hover:bg-luxury-100 transition-all">
+          How it works
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Subtle background ornament -->
+  <div class="absolute inset-0 -z-10 overflow-hidden pointer-events-none" aria-hidden="true">
+    <div class="absolute -top-40 -right-40 w-80 h-80 rounded-full bg-blue-50 opacity-60 blur-3xl"></div>
+    <div class="absolute -bottom-40 -left-40 w-80 h-80 rounded-full bg-luxury-100 opacity-40 blur-3xl"></div>
+  </div>
+</section>
+
+<!-- ─── Features ──────────────────────────────────────────── -->
+<section id="features" class="py-16 sm:py-24">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center mb-16">
+      <h2 class="text-3xl sm:text-4xl font-display font-semibold text-luxury-900">
+        Three steps to your perfect clip.
+      </h2>
+      <p class="mt-4 text-luxury-500 max-w-xl mx-auto">
+        No editing skills required.
+      </p>
+    </div>
+
+    <div class="grid md:grid-cols-3 gap-6 sm:gap-8">
+      <!-- Feature 1 -->
+      <div class="group bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-luxury-100 hover:shadow-md hover:border-blue-200 transition-all duration-300">
+        <div class="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center mb-5 group-hover:bg-blue-100 transition-colors">
+          <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+          </svg>
+        </div>
+        <h3 class="text-lg font-semibold text-luxury-900 mb-2">1. Paste a link</h3>
+        <p class="text-sm text-luxury-500 leading-relaxed">
+          Any YouTube URL works. VidSnap fetches the transcript automatically.
+        </p>
+      </div>
+
+      <!-- Feature 2 -->
+      <div class="group bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-luxury-100 hover:shadow-md hover:border-blue-200 transition-all duration-300">
+        <div class="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center mb-5 group-hover:bg-blue-100 transition-colors">
+          <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+          </svg>
+        </div>
+        <h3 class="text-lg font-semibold text-luxury-900 mb-2">2. AI finds the gold</h3>
+        <p class="text-sm text-luxury-500 leading-relaxed">
+          Gemini scans the transcript and pinpoints viral-worthy segments.
+        </p>
+      </div>
+
+      <!-- Feature 3 -->
+      <div class="group bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-luxury-100 hover:shadow-md hover:border-blue-200 transition-all duration-300">
+        <div class="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center mb-5 group-hover:bg-blue-100 transition-colors">
+          <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/>
+          </svg>
+        </div>
+        <h3 class="text-lg font-semibold text-luxury-900 mb-2">3. Download & share</h3>
+        <p class="text-sm text-luxury-500 leading-relaxed">
+          Preview, tweak, and download vertical clips ready for Shorts & Reels.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── CTA ──────────────────────────────────────────────── -->
+<section class="pb-20 sm:pb-32">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="relative overflow-hidden rounded-3xl bg-luxury-900 px-6 sm:px-12 py-14 sm:py-20 text-center">
+      <div class="relative z-10">
+        <h2 class="text-3xl sm:text-4xl font-display font-semibold text-white">
+          Ready to start clipping?
+        </h2>
+        <p class="mt-4 text-luxury-300 max-w-lg mx-auto">
+          Paste your first YouTube link and let AI find the best moments.
+        </p>
+        <div class="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
+          <a href="{% url 'accounts:register' %}"
+             class="inline-flex items-center px-8 py-3.5 rounded-xl bg-white text-luxury-900 text-sm font-medium hover:bg-blue-50 transition-all shadow-lg">
+            Get started free
+          </a>
+          <a href="{% url 'core:about' %}"
+             class="inline-flex items-center px-8 py-3.5 rounded-xl border border-luxury-600 text-luxury-200 text-sm font-medium hover:bg-luxury-800 transition-all">
+            Learn more
+          </a>
+        </div>
+      </div>
+      <!-- Ornament -->
+      <div class="absolute top-0 right-0 w-64 h-64 rounded-full bg-blue-500/5 blur-3xl pointer-events-none" aria-hidden="true"></div>
+      <div class="absolute bottom-0 left-0 w-48 h-48 rounded-full bg-white/5 blur-3xl pointer-events-none" aria-hidden="true"></div>
+    </div>
+  </div>
+</section>
+{% endblock content %}

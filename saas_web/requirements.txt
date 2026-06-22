@@ -1,0 +1,8 @@
+django>=4.2,<5.0
+python-decouple>=3.8
+yt-dlp>=2024.12
+google-genai>=1.0
+Pillow>=10.0
+psycopg2-binary>=2.9
+requests>=2.31.0
+pydantic>=2.5

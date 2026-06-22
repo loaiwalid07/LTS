@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Dashboard — VidSnap{% endblock title %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
+  <!-- Page heading -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-10">
+    <div>
+      <h1 class="text-2xl sm:text-3xl font-display font-semibold text-luxury-900">
+        Welcome{% if user.first_name %}, {{ user.first_name }}{% endif %}.
+      </h1>
+      <p class="mt-1 text-sm text-luxury-500">Your clip history and workspace.</p>
+    </div>
+    <a href="{% url 'yt_tools:generate' %}"
+       class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-all shadow-sm self-start">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+      </svg>
+      New clip
+    </a>
+  </div>
+
+  <!-- Stats cards -->
+  <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
+    <div class="bg-white rounded-xl p-5 sm:p-6 shadow-sm border border-luxury-100">
+      <p class="text-xs font-semibold tracking-widest uppercase text-luxury-400">Total Clips</p>
+      <p class="mt-2 text-3xl font-display font-semibold text-luxury-900">{{ total_clips }}</p>
+    </div>
+    <div class="bg-white rounded-xl p-5 sm:p-6 shadow-sm border border-luxury-100">
+      <p class="text-xs font-semibold tracking-widest uppercase text-luxury-400">Jobs Today</p>
+      <p class="mt-2 text-3xl font-display font-semibold text-luxury-900">{{ jobs_today }}</p>
+    </div>
+    <div class="bg-white rounded-xl p-5 sm:p-6 shadow-sm border border-luxury-100">
+      <p class="text-xs font-semibold tracking-widest uppercase text-luxury-400">Storage Used</p>
+      <p class="mt-2 text-3xl font-display font-semibold text-luxury-900">{{ storage_used|default:"—" }}</p>
+    </div>
+    <div class="bg-white rounded-xl p-5 sm:p-6 shadow-sm border border-luxury-100">
+      <p class="text-xs font-semibold tracking-widest uppercase text-luxury-400">Recent Jobs</p>
+      <p class="mt-2 text-3xl font-display font-semibold text-luxury-900">{{ recent_jobs }}</p>
+    </div>
+  </div>
+
+  <!-- Recent jobs -->
+  {% if jobs %}
+    <div class="bg-white rounded-2xl shadow-sm border border-luxury-100 overflow-hidden">
+      <div class="px-6 py-4 border-b border-luxury-100">
+        <h2 class="text-sm font-semibold text-luxury-900">Recent clip jobs</h2>
+      </div>
+      <div class="divide-y divide-luxury-100">
+        {% for job in jobs %}
+          <a href="{% url 'yt_tools:results' job.id %}"
+             class="flex items-center justify-between px-6 py-4 hover:bg-luxury-50 transition-colors">
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-medium text-luxury-900 truncate">{{ job.video_title|default:job.youtube_url }}</p>
+              <p class="text-xs text-luxury-500 mt-0.5">{{ job.created_at|date:"M j, Y · g:i A" }}</p>
+            </div>
+            <div class="ml-4 flex items-center gap-3">
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                {% if job.status == 'done' %}bg-emerald-50 text-emerald-700
+                {% elif job.status == 'processing' %}bg-blue-50 text-blue-700
+                {% elif job.status == 'error' %}bg-red-50 text-red-700
+                {% else %}bg-luxury-100 text-luxury-600{% endif %}">
+                {{ job.get_status_display }}
+              </span>
+              <svg class="w-4 h-4 text-luxury-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+              </svg>
+            </div>
+          </a>
+        {% empty %}
+          <div class="px-6 py-12 text-center text-sm text-luxury-400">
+            No clip jobs yet. <a href="{% url 'yt_tools:generate' %}" class="text-blue-600 hover:text-blue-700 font-medium">Create your first one</a>.
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  {% else %}
+    <!-- Empty state -->
+    <div class="bg-white rounded-2xl p-8 sm:p-12 shadow-sm border border-luxury-100 text-center">
+      <div class="w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center mx-auto mb-5">
+        <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+        </svg>
+      </div>
+      <h2 class="text-xl font-display font-semibold text-luxury-900 mb-2">No clips yet</h2>
+      <p class="text-sm text-luxury-500 max-w-md mx-auto leading-relaxed">
+        Paste a YouTube link and let AI find the best moments for you.
+      </p>
+      <a href="{% url 'yt_tools:generate' %}"
+         class="mt-6 inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-all shadow-sm">
+        Create your first clip
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/>
+        </svg>
+      </a>
+    </div>
+  {% endif %}
+</div>
+{% endblock content %}

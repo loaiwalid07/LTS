@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Clip Studio — VidSnap{% endblock title %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
+  <!-- Header -->
+  <div class="mb-10">
+    <h1 class="text-2xl sm:text-3xl font-display font-semibold text-luxury-900">Clip Studio</h1>
+    <p class="mt-1 text-sm text-luxury-500">
+      Paste a YouTube link and let AI find the best moments for you.
+    </p>
+  </div>
+
+  <div class="grid lg:grid-cols-5 gap-8">
+    <!-- ─── Form ──────────────────────────────────────── -->
+    <div class="lg:col-span-2">
+      <div class="bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-luxury-100 sticky top-24">
+        <form method="post" class="space-y-5">
+          {% csrf_token %}
+
+          {% if form.non_field_errors %}
+            <div class="text-sm text-red-600 bg-red-50 px-4 py-3 rounded-lg border border-red-200">
+              {{ form.non_field_errors.0 }}
+            </div>
+          {% endif %}
+
+          {% for field in form %}
+            <div>
+              <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-luxury-700 mb-1.5">
+                {{ field.label }}
+              </label>
+              {{ field }}
+              {% if field.errors %}
+                <p class="mt-1 text-xs text-red-500">{{ field.errors.0 }}</p>
+              {% endif %}
+              {% if field.help_text %}
+                <p class="mt-1 text-xs text-luxury-400">{{ field.help_text }}</p>
+              {% endif %}
+            </div>
+          {% endfor %}
+
+          <button type="submit"
+                  class="w-full inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-all shadow-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            Generate clips
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- ─── Recent jobs ───────────────────────────────── -->
+    <div class="lg:col-span-3">
+      <h2 class="text-sm font-semibold text-luxury-900 mb-4">Your recent clip jobs</h2>
+
+      {% if recent_jobs %}
+        <div class="space-y-3">
+          {% for job in recent_jobs %}
+            <a href="{% url 'yt_tools:results' job.id %}"
+               class="block bg-white rounded-xl p-5 shadow-sm border border-luxury-100 hover:border-blue-200 hover:shadow-md transition-all">
+              <div class="flex items-start justify-between gap-4">
+                <div class="min-w-0 flex-1">
+                  <p class="text-sm font-medium text-luxury-900 truncate">
+                    {{ job.video_title|default:job.youtube_url }}
+                  </p>
+                  <p class="text-xs text-luxury-500 mt-1">
+                    {{ job.created_at|date:"M j, Y · g:i A" }}
+                  </p>
+                  <div class="flex items-center gap-3 mt-2">
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
+                      {% if job.status == 'done' %}bg-emerald-50 text-emerald-700
+                      {% elif job.status == 'processing' or job.status == 'pending' %}bg-blue-50 text-blue-700
+                      {% elif job.status == 'error' %}bg-red-50 text-red-700
+                      {% else %}bg-luxury-100 text-luxury-600{% endif %}">
+                      {{ job.get_status_display }}
+                    </span>
+                    <span class="text-xs text-luxury-400">{{ job.clips.count }} clip{{ job.clips.count|pluralize }}</span>
+                  </div>
+                </div>
+                <svg class="w-5 h-5 text-luxury-300 flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                </svg>
+              </div>
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="bg-white rounded-2xl p-10 shadow-sm border border-luxury-100 text-center">
+          <div class="w-14 h-14 rounded-full bg-blue-50 flex items-center justify-center mx-auto mb-4">
+            <svg class="w-7 h-7 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+            </svg>
+          </div>
+          <p class="text-sm text-luxury-500">No jobs yet. Paste a YouTube link to get started.</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock content %}

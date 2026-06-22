@@ -1,0 +1,157 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}VidSnap{% endblock title %}</title>
+
+  <!-- Tailwind CSS via CDN (dev only — swap for build step in production) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            luxury: {
+              50:  '#f8fafc',
+              100: '#f1f5f9',
+              200: '#e2e8f0',
+              300: '#cbd5e1',
+              400: '#94a3b8',
+              500: '#64748b',
+              600: '#475569',
+              700: '#334155',
+              800: '#1e293b',
+              900: '#0f172a',
+            },
+          },
+          fontFamily: {
+            display: ['"Playfair Display"', 'Georgia', 'serif'],
+            body:    ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+          },
+        },
+      },
+    }
+  </script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap"
+    rel="stylesheet"
+  />
+
+  <!-- Custom styles -->
+  <link rel="stylesheet" href="{% static 'assets/css/style.css' %}" />
+</head>
+<body class="font-body text-luxury-900 bg-luxury-50 antialiased">
+
+  <!-- ─── Navigation ─────────────────────────────────────────── -->
+  <nav class="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-luxury-100">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16 sm:h-18">
+        <!-- Logo -->
+        <a href="{% url 'core:index' %}"
+           class="text-xl sm:text-2xl font-display font-semibold text-luxury-800 tracking-tight">
+          Vid<span class="text-blue-600">Snap</span>
+        </a>
+
+        <!-- Nav links (desktop) -->
+        <div class="hidden md:flex items-center gap-8 text-sm font-medium text-luxury-600">
+          <a href="{% url 'core:index' %}" class="hover:text-blue-600 transition-colors">Home</a>
+          <a href="{% url 'core:about' %}" class="hover:text-blue-600 transition-colors">About</a>
+
+          {% if user.is_authenticated %}
+            <a href="{% url 'yt_tools:generate' %}" class="hover:text-blue-600 transition-colors">Clip Studio</a>
+            <a href="{% url 'accounts:profile' %}" class="hover:text-blue-600 transition-colors">Profile</a>
+            <form method="post" action="{% url 'accounts:logout' %}" class="inline">
+              {% csrf_token %}
+              <button type="submit" class="text-sm font-medium text-luxury-500 hover:text-luxury-800 transition-colors">
+                Sign out
+              </button>
+            </form>
+          {% else %}
+            <a href="{% url 'accounts:login' %}" class="hover:text-blue-600 transition-colors">Sign in</a>
+            <a href="{% url 'accounts:register' %}"
+               class="inline-flex items-center px-4 py-2 rounded-lg bg-luxury-900 text-white text-sm font-medium hover:bg-luxury-800 transition-all shadow-sm">
+              Get started
+            </a>
+          {% endif %}
+        </div>
+
+        <!-- Mobile menu button -->
+        <button id="mobile-menu-btn" class="md:hidden p-2 rounded-lg text-luxury-600 hover:bg-luxury-100 transition-colors"
+                aria-label="Toggle menu">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Mobile menu -->
+    <div id="mobile-menu" class="hidden md:hidden bg-white border-t border-luxury-100 px-4 py-4 space-y-3 text-sm">
+      <a href="{% url 'core:index' %}" class="block text-luxury-600 hover:text-blue-600">Home</a>
+      <a href="{% url 'core:about' %}" class="block text-luxury-600 hover:text-blue-600">About</a>
+      {% if user.is_authenticated %}
+        <a href="{% url 'yt_tools:generate' %}" class="block text-luxury-600 hover:text-blue-600">Clip Studio</a>
+        <a href="{% url 'accounts:profile' %}" class="block text-luxury-600 hover:text-blue-600">Profile</a>
+        <form method="post" action="{% url 'accounts:logout' %}">
+          {% csrf_token %}
+          <button type="submit" class="block w-full text-left text-luxury-500 hover:text-luxury-800">Sign out</button>
+        </form>
+      {% else %}
+        <a href="{% url 'accounts:login' %}" class="block text-luxury-600 hover:text-blue-600">Sign in</a>
+        <a href="{% url 'accounts:register' %}" class="block text-blue-600 font-medium">Get started</a>
+      {% endif %}
+    </div>
+  </nav>
+
+  <!-- ─── Messages ───────────────────────────────────────────── -->
+  {% if messages %}
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+      {% for message in messages %}
+        <div class="px-4 py-3 rounded-lg text-sm font-medium
+          {% if message.tags == 'error' %}bg-red-50 text-red-700 border border-red-200
+          {% elif message.tags == 'success' %}bg-emerald-50 text-emerald-700 border border-emerald-200
+          {% else %}bg-luxury-100 text-luxury-700 border border-luxury-200{% endif %}">
+          {{ message }}
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <!-- ─── Main Content ────────────────────────────────────────── -->
+  <main>
+    {% block content %}{% endblock content %}
+  </main>
+
+  <!-- ─── Footer ─────────────────────────────────────────────── -->
+  <footer class="border-t border-luxury-100 bg-white mt-20">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-luxury-400">
+        <p>&copy; {% now "Y" %} VidSnap. All rights reserved.</p>
+        <div class="flex gap-6">
+          <a href="{% url 'core:about' %}" class="hover:text-blue-600 transition-colors">About</a>
+          <a href="#" class="hover:text-blue-600 transition-colors">Privacy</a>
+          <a href="#" class="hover:text-blue-600 transition-colors">Terms</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Mobile menu toggle script -->
+  <script>
+    const btn = document.getElementById('mobile-menu-btn');
+    const menu = document.getElementById('mobile-menu');
+    if (btn && menu) {
+      btn.addEventListener('click', () => {
+        menu.classList.toggle('hidden');
+      });
+    }
+  </script>
+  <script src="{% static 'assets/js/main.js' %}"></script>
+</body>
+</html>

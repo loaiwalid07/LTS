@@ -1,0 +1,173 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Results — VidSnap{% endblock title %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
+  <!-- Back link -->
+  <a href="{% url 'yt_tools:generate' %}"
+     class="inline-flex items-center gap-1.5 text-sm text-luxury-500 hover:text-blue-600 transition-colors mb-8">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16l-4-4m0 0l4-4m-4 4h18"/>
+    </svg>
+    Back to Clip Studio
+  </a>
+
+  <!-- Job header -->
+  <div class="mb-10">
+    <div class="flex items-start justify-between gap-4">
+      <div>
+        <h1 class="text-2xl sm:text-3xl font-display font-semibold text-luxury-900">
+          {{ job.video_title|default:"Clip Results" }}
+        </h1>
+        <p class="mt-1 text-sm text-luxury-500 break-all">{{ job.youtube_url }}</p>
+      </div>
+      <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium flex-shrink-0
+        {% if job.status == 'done' %}bg-emerald-50 text-emerald-700
+        {% elif job.status == 'processing' or job.status == 'pending' %}bg-blue-50 text-blue-700
+        {% elif job.status == 'error' %}bg-red-50 text-red-700
+        {% else %}bg-luxury-100 text-luxury-600{% endif %}">
+        {{ job.get_status_display }}
+      </span>
+    </div>
+    <p class="mt-2 text-xs text-luxury-400">{{ job.created_at|date:"F j, Y · g:i A" }}</p>
+  </div>
+
+  {% if job.status == 'processing' or job.status == 'pending' %}
+    <!-- ─── Processing state (auto-refreshing) ────────── -->
+    <div class="bg-white rounded-2xl p-8 sm:p-12 shadow-sm border border-luxury-100 text-center">
+      <div class="w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center mx-auto mb-5">
+        <svg class="w-8 h-8 text-blue-600 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+        </svg>
+      </div>
+      <h2 class="text-xl font-display font-semibold text-luxury-900 mb-2">Processing your video</h2>
+
+      <!-- Real progress bar -->
+      <div class="mt-6 max-w-md mx-auto">
+        <div class="flex justify-between text-xs text-luxury-500 mb-2">
+          <span>{{ job.progress_label }}</span>
+          <span>{{ job.progress_pct }}%</span>
+        </div>
+        <div class="w-full h-2 bg-luxury-100 rounded-full overflow-hidden">
+          <div class="h-full bg-blue-600 rounded-full transition-all duration-500 ease-out"
+               style="width: {{ job.progress_pct }}%"></div>
+        </div>
+      </div>
+
+      <div class="mt-8">
+        <button onclick="location.reload()"
+                class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-luxury-200 text-sm font-medium text-luxury-700 hover:bg-luxury-50 transition-all">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+          </svg>
+          Refresh
+        </button>
+      </div>
+    </div>
+
+    <!-- ─── Auto-refresh every 5s ───────────────────────── -->
+    <script>
+      (function() {
+        var status = '{{ job.status }}';
+        if (status === 'processing' || status === 'pending') {
+          setTimeout(function() { location.reload(); }, 5000);
+        }
+      })();
+    </script>
+
+  {% elif job.status == 'error' %}
+    <!-- ─── Error state ─────────────────────────────── -->
+    <div class="bg-white rounded-2xl p-12 shadow-sm border border-red-100 text-center">
+      <div class="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-5">
+        <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+        </svg>
+      </div>
+      <h2 class="text-xl font-display font-semibold text-luxury-900 mb-2">Something went wrong</h2>
+      <p class="text-sm text-red-600 bg-red-50 px-4 py-3 rounded-lg border border-red-200 max-w-lg mx-auto">
+        {{ job.error_message|default:"An unknown error occurred." }}
+      </p>
+      <form method="post" action="{% url 'yt_tools:regenerate' job.id %}" class="mt-8">
+        {% csrf_token %}
+        <button type="submit"
+                class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-all shadow-sm">
+          Try again
+        </button>
+      </form>
+    </div>
+
+  {% elif job.status == 'done' %}
+    <!-- ─── Results ──────────────────────────────────── -->
+    {% if job.clips.exists %}
+      <div class="space-y-6">
+        {% for clip in job.clips.all %}
+          <div class="bg-white rounded-2xl overflow-hidden shadow-sm border border-luxury-100">
+            <div class="p-6 sm:p-8">
+              <div class="flex items-start justify-between gap-4 mb-4">
+                <div>
+                  <h3 class="text-lg font-semibold text-luxury-900">{{ clip.title }}</h3>
+                  <p class="text-xs text-luxury-500 mt-1">
+                    {{ clip.start_time|floatformat:1 }}s – {{ clip.end_time|floatformat:1 }}s
+                    · {{ clip.duration }}s duration
+                  </p>
+                </div>
+                {% if clip.is_downloaded and clip.video_file %}
+                  <a href="{{ clip.video_file.url }}"
+                     download
+                     class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 transition-all shadow-sm flex-shrink-0">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/>
+                    </svg>
+                    Download
+                  </a>
+                {% endif %}
+              </div>
+
+              {% if clip.is_downloaded and clip.video_file %}
+                <video controls class="w-full max-h-96 rounded-xl bg-black" preload="metadata">
+                  <source src="{{ clip.video_file.url }}" type="video/mp4">
+                </video>
+              {% else %}
+                <div class="bg-luxury-50 rounded-xl p-8 text-center text-sm text-luxury-400 border border-dashed border-luxury-200">
+                  Clip data saved (start: {{ clip.start_time|floatformat:1 }}s, end: {{ clip.end_time|floatformat:1 }}s).
+                </div>
+              {% endif %}
+
+              {% if clip.reason %}
+                <div class="mt-4 pt-4 border-t border-luxury-100">
+                  <p class="text-xs font-medium text-luxury-500 uppercase tracking-wider mb-1">Why this clip works</p>
+                  <p class="text-sm text-luxury-600">{{ clip.reason }}</p>
+                </div>
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+
+      <!-- Regenerate -->
+      <div class="mt-10 text-center">
+        <form method="post" action="{% url 'yt_tools:regenerate' job.id %}">
+          {% csrf_token %}
+          <button type="submit"
+                  class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-luxury-200 text-sm font-medium text-luxury-700 hover:bg-luxury-50 transition-all">
+            Regenerate clips from this video
+          </button>
+        </form>
+      </div>
+
+    {% else %}
+      <div class="bg-white rounded-2xl p-12 shadow-sm border border-luxury-100 text-center">
+        <div class="w-16 h-16 rounded-full bg-luxury-100 flex items-center justify-center mx-auto mb-5">
+          <svg class="w-8 h-8 text-luxury-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0"/>
+          </svg>
+        </div>
+        <h2 class="text-xl font-display font-semibold text-luxury-900 mb-2">No clips found</h2>
+        <p class="text-sm text-luxury-500">The AI couldn't identify suitable clips. Try a different video or adjust your settings.</p>
+      </div>
+    {% endif %}
+  {% endif %}
+</div>
+{% endblock content %}

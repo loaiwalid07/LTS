@@ -1,0 +1,82 @@
+/* ===================================================================
+   VidSnap — Custom Styles
+   Navy blue luxury design.
+   Tailwind CSS handles the heavy lifting; this file adds the polish.
+   =================================================================== */
+
+/* ─── Smooth scrolling ──────────────────────────────────── */
+html {
+  scroll-behavior: smooth;
+}
+
+/* ─── Auth form inputs ──────────────────────────────────── */
+.auth-input {
+  display: block;
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: #0f172a;
+  background-color: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  outline: none;
+}
+
+.auth-input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.auth-input::placeholder {
+  color: #94a3b8;
+}
+
+/* ─── Selection ─────────────────────────────────────────── */
+::selection {
+  background-color: rgba(37, 99, 235, 0.12);
+  color: #0f172a;
+}
+
+/* ─── Focus ring utility ────────────────────────────────── */
+*:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+  border-radius: 0.25rem;
+}
+
+/* ─── Button reset for form auth buttons ────────────────── */
+button.auth-input {
+  appearance: none;
+}
+
+/* ─── Gradient text utility ─────────────────────────────── */
+.text-gradient {
+  background: linear-gradient(135deg, #2563eb, #60a5fa);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ─── Card hover effect ─────────────────────────────────── */
+.card-hover {
+  transition: transform 0.2s ease, box-shadow 0.3s ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-2px);
+}
+
+/* ─── Mobile nav animation ──────────────────────────────── */
+#mobile-menu {
+  transition: opacity 0.2s ease, max-height 0.3s ease;
+  max-height: 500px;
+  opacity: 1;
+}
+
+#mobile-menu.hidden {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+}
