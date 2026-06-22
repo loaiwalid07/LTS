@@ -1,14 +1,17 @@
 """
 Views for the VidSnap clip pipeline.
 """
+import os
 import re
 import threading
 
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.shortcuts import redirect
+from django.http import FileResponse, Http404
+from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
+from django.views import View
 from django.views.generic import CreateView, DetailView
 
 from .forms import ClipGenerateForm
@@ -106,16 +109,17 @@ def _process_job(job: ClipJob, api_key: str, cookies_path: str):
                 safe_title = re.sub(r'[^\w\s-]', '', seg.title).strip()[:30] or f'clip-{i+1}'
                 suffix = f'{safe_title}_{seg.start_time:.0f}s'.replace(' ', '_')
 
+                clip_dir = os.path.join(settings.CLIP_OUTPUT_DIR, str(job.id))
                 out_path = download_and_cut_direct(
                     url=job.youtube_url,
                     start=seg.start_time,
                     end=seg.end_time,
-                    output_dir=f'media/clips/{job.id}',
+                    output_dir=clip_dir,
                     cookies_path=cookies_path,
                     filename_suffix=suffix,
                 )
                 if out_path:
-                    seg.video_file.name = f'clips/{job.id}/{out_path.name}'
+                    seg.video_file.name = out_path.name  # just the filename, not the full path
                     seg.is_downloaded = True
                     seg.save(update_fields=['video_file', 'is_downloaded'])
             except Exception as e:
@@ -234,3 +238,30 @@ class ClipRegenerateView(LoginRequiredMixin, DetailView):
 
         messages.success(request, 'Regenerating clips...')
         return redirect('yt_tools:results', pk=job.pk)
+
+
+class ClipDownloadView(LoginRequiredMixin, View):
+    """
+    Serve a clip video file from the storage directory.
+
+    Works on Vercel where MEDIA_URL is not served and /tmp/ is used.
+    """
+
+    def get(self, request, clip_id):
+        clip = get_object_or_404(ClipSegment, id=clip_id, job__user=request.user)
+        file_path = os.path.join(
+            settings.CLIP_OUTPUT_DIR,
+            str(clip.job_id),
+            clip.video_file.name,
+        )
+        log.info('ClipDownloadView | serving clip=%d path=%s', clip_id, file_path)
+
+        if not os.path.exists(file_path):
+            log.error('ClipDownloadView | file not found: %s', file_path)
+            raise Http404('Clip file not found')
+
+        return FileResponse(
+            open(file_path, 'rb'),
+            as_attachment=False,
+            filename=clip.video_file.name,
+        )

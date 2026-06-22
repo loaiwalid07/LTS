@@ -114,7 +114,7 @@
                   </p>
                 </div>
                 {% if clip.is_downloaded and clip.video_file %}
-                  <a href="{{ clip.video_file.url }}"
+                  <a href="{% url 'yt_tools:clip_download' clip.id %}"
                      download
                      class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 transition-all shadow-sm flex-shrink-0">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -127,7 +127,7 @@
 
               {% if clip.is_downloaded and clip.video_file %}
                 <video controls class="w-full max-h-96 rounded-xl bg-black" preload="metadata">
-                  <source src="{{ clip.video_file.url }}" type="video/mp4">
+                  <source src="{% url 'yt_tools:clip_download' clip.id %}" type="video/mp4">
                 </video>
               {% else %}
                 <div class="bg-luxury-50 rounded-xl p-8 text-center text-sm text-luxury-400 border border-dashed border-luxury-200">

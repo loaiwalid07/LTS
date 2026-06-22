@@ -115,6 +115,11 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = 'media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+# Directory for storing generated clip videos.
+# On Vercel, set this to /tmp/clips (the only writable directory).
+# Locally, defaults to <project>/media/clips.
+CLIP_OUTPUT_DIR = config('CLIP_OUTPUT_DIR', default=str(BASE_DIR / 'media' / 'clips'))
+
 # ---------------------------------------------------------------------------
 # YT-TOOLS — AI
 # ---------------------------------------------------------------------------

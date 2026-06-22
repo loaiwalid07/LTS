@@ -8,4 +8,5 @@ urlpatterns = [
     path('', views.ClipGenerateView.as_view(), name='generate'),
     path('<int:pk>/', views.ClipResultsView.as_view(), name='results'),
     path('<int:pk>/regenerate/', views.ClipRegenerateView.as_view(), name='regenerate'),
+    path('clip/<int:clip_id>/download/', views.ClipDownloadView.as_view(), name='clip_download'),
 ]
