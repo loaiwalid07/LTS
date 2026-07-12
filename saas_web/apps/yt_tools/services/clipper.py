@@ -74,6 +74,10 @@ def download_and_cut_direct(
         outtmpl = str(output_path / '%(title).50s.%(ext)s')
 
     # ── Primary command (android client) ─────────────────────────────
+    # Build the format string: try progressive first (more reliable with ffmpeg
+    # post-processor), fall back to DASH merge.
+    fmt = 'bestvideo[height<=1080]+bestaudio/best[height<=1080]'
+
     cmd = [
         sys.executable, '-m', 'yt_dlp',
         '--quiet',
@@ -81,10 +85,8 @@ def download_and_cut_direct(
         '--extractor-args', 'youtube:player_client=android',
         '--download-sections', f'*{start_ts}-{end_ts}',
         '--force-keyframes-at-cut',
-        '--downloader', 'ffmpeg',
-        '--downloader-args', 'ffmpeg_i:-ss 0',
         '--postprocessor-args', f'ffmpeg:-t {duration}',
-        '-f', 'bestvideo[height<=1080]+bestaudio/best[height<=1080]',
+        '-f', fmt,
         '--output', outtmpl,
         '--merge-output-format', 'mp4',
         url,
@@ -108,10 +110,8 @@ def download_and_cut_direct(
                 '--no-warnings',
                 '--download-sections', f'*{start_ts}-{end_ts}',
                 '--force-keyframes-at-cut',
-                '--downloader', 'ffmpeg',
-                '--downloader-args', 'ffmpeg_i:-ss 0',
                 '--postprocessor-args', f'ffmpeg:-t {duration}',
-                '-f', 'bestvideo[height<=1080]+bestaudio/best[height<=1080]',
+                '-f', fmt,
                 '--output', outtmpl,
                 '--merge-output-format', 'mp4',
                 url,
