@@ -22,12 +22,13 @@ FROM python:3.12-slim
 # Create a non-root user
 RUN groupadd -r django && useradd -r -g django -m -d /app django
 
-# Runtime system deps (psycopg2, Pillow, yt-dlp)
+# Runtime system deps (psycopg2, Pillow, yt-dlp, ffmpeg codecs)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
     libjpeg62-turbo \
     libwebp7 \
     ffmpeg \
+    libavcodec-extra \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
