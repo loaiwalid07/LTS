@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt
+RUN pip install --no-cache-dir --user -r requirements.txt gunicorn
 
 # ---------------------------------------------------------------------------
 # Stage 2 — runtime image (slim)
@@ -32,9 +32,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Copy installed Python packages from builder
+# Copy installed Python packages from builder (includes gunicorn)
 COPY --from=builder /root/.local /usr/local
-RUN pip install --no-cache-dir gunicorn
 
 # Copy project
 COPY --chown=django:django . .
