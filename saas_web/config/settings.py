@@ -21,6 +21,7 @@ ALLOWED_HOSTS = [
     '.vercel.app',   # wildcard for preview URLs
     'localhost',
     '127.0.0.1',
+    '169.58.7.240'
 ]
 # ---------------------------------------------------------------------------
 # APPLICATION
