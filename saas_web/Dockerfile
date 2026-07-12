@@ -41,7 +41,7 @@ COPY --chown=django:django . .
 
 # Collect static files
 RUN mkdir -p /app/staticfiles && \
-    python manage.py collectstatic --noinput --clear 2>/dev/null || true
+    python manage.py collectstatic --noinput --clear
 
 # Ensure clip output directory exists (writable for yt-dlp)
 RUN mkdir -p /app/media/clips && chown -R django:django /app/media /app/staticfiles
