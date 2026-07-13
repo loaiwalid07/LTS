@@ -80,7 +80,7 @@ def download_and_cut_direct(
 
     cmd = [
         sys.executable, '-m', 'yt_dlp',
-        '--quiet',
+        # '--quiet',
         '--no-warnings',
         '--extractor-args', 'youtube:player_client=android',
         '--download-sections', f'*{start_ts}-{end_ts}',
@@ -106,7 +106,7 @@ def download_and_cut_direct(
             # ── Fallback (no android client) ─────────────────────────
             fallback_cmd = [
                 sys.executable, '-m', 'yt_dlp',
-                '--quiet',
+                # '--quiet',
                 '--no-warnings',
                 '--download-sections', f'*{start_ts}-{end_ts}',
                 '--force-keyframes-at-cut',
