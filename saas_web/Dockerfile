@@ -39,6 +39,19 @@ COPY --from=builder /root/.local /usr/local
 # Copy project
 COPY --chown=django:django . .
 
+# ── Download YouTube cookies from Google Drive (optional) ──────────────
+ARG GDRIVE_COOKIES_FILE_ID=
+RUN if [ -n "$GDRIVE_COOKIES_FILE_ID" ]; then \
+        echo "Downloading cookies from Google Drive (file_id=$GDRIVE_COOKIES_FILE_ID)..." && \
+        pip install --quiet gdown && \
+        gdown "$GDRIVE_COOKIES_FILE_ID" -O /app/cookies.txt && \
+        chmod 600 /app/cookies.txt && \
+        pip uninstall -y gdown --quiet && \
+        echo "Cookies downloaded to /app/cookies.txt"; \
+    else \
+        echo "No GDRIVE_COOKIES_FILE_ID set — skipping cookie download"; \
+    fi
+
 # Make entrypoint executable
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh
 RUN chmod +x /app/docker-entrypoint.sh
