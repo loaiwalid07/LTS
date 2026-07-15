@@ -43,6 +43,22 @@ def _set_step(job: ClipJob, label: str, pct: int):
     log.info('PROGRESS job=%d | %s (%d%%)', job.pk, label, pct)
 
 
+def _resolve_cookies() -> str:
+    """Return a path to a cookies file, writing it from YT_CLIPS_COOKIES if needed."""
+    path = settings.YT_CLIPS_COOKIES_PATH
+    if path and os.path.isfile(path):
+        return path
+    raw = os.environ.get('YT_CLIPS_COOKIES', '')
+    if raw:
+        import tempfile
+        tmp = tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False)
+        tmp.write(raw)
+        tmp.close()
+        log.info('_resolve_cookies | wrote %d bytes from YT_CLIPS_COOKIES env var → %s', len(raw), tmp.name)
+        return tmp.name
+    return ''
+
+
 def _process_job(job: ClipJob, api_key: str, cookies_path: str):
     """Run the full clip pipeline in a background thread."""
     log.info('=== PIPELINE START job=%d (url=%.80s) ===', job.pk, job.youtube_url)
@@ -176,7 +192,7 @@ class ClipGenerateView(LoginRequiredMixin, CreateView):
         log.info('ClipGenerateView | new job pk=%d user=%s', self.object.pk, self.request.user)
 
         api_key = settings.GEMINI_API_KEY
-        cookies_path = settings.YT_CLIPS_COOKIES_PATH
+        cookies_path = _resolve_cookies()
 
         log.info('ClipGenerateView | GEMINI_API_KEY configured=%s', bool(api_key))
 
@@ -227,7 +243,7 @@ class ClipRegenerateView(LoginRequiredMixin, DetailView):
         job.save(update_fields=['status', 'error_message', 'progress_step'])
 
         api_key = settings.GEMINI_API_KEY
-        cookies_path = settings.YT_CLIPS_COOKIES_PATH
+        cookies_path = _resolve_cookies()
 
         thread = threading.Thread(
             target=_process_job,
