@@ -48,7 +48,7 @@ RUN mkdir -p /app/staticfiles && \
     python manage.py collectstatic --noinput --clear 2>/dev/null || true
 
 # Ensure clip output directory exists (writable for yt-dlp)
-RUN mkdir -p /app/media/clips && chown -R django:django /app/media /app/staticfiles
+RUN mkdir -p /app/media/clips && chown -R django:django /app
 
 USER django
 
