@@ -39,6 +39,10 @@ COPY --from=builder /root/.local /usr/local
 # Copy project
 COPY --chown=django:django . .
 
+# Make entrypoint executable
+COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh
+
 # Collect static files
 RUN mkdir -p /app/staticfiles && \
     python manage.py collectstatic --noinput --clear 2>/dev/null || true
@@ -50,4 +54,4 @@ USER django
 
 EXPOSE 8000
 
-CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "4", "--timeout", "120"]
+ENTRYPOINT ["/app/docker-entrypoint.sh"]

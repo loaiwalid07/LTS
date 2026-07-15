@@ -49,6 +49,7 @@ services:
       # DB_PORT: 5432
 
       GEMINI_API_KEY: ${GEMINI_API_KEY}
+      YT_CLIPS_COOKIES: ${YT_CLIPS_COOKIES:-}
       YT_CLIPS_COOKIES_PATH: ${YT_CLIPS_COOKIES_PATH:-}
       CLIP_OUTPUT_DIR: /app/media/clips
     depends_on:
