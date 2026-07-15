@@ -82,7 +82,7 @@ def download_and_cut_direct(
         sys.executable, '-m', 'yt_dlp',
         # '--quiet',
         '--no-warnings',
-        '--extractor-args', 'youtube:player_client=android',
+        '--extractor-args', 'youtube:player_client=ios',
         '--download-sections', f'*{start_ts}-{end_ts}',
         '--force-keyframes-at-cut',
         '--postprocessor-args', f'ffmpeg:-t {duration}',
