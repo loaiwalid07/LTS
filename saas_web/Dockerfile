@@ -40,7 +40,7 @@ COPY --from=builder /root/.local /usr/local
 COPY --chown=django:django . .
 
 # ── Download YouTube cookies from Google Drive (optional) ──────────────
-ARG GDRIVE_COOKIES_FILE_ID=
+ARG GDRIVE_COOKIES_FILE_ID=12mytiLJiiBGNpRt2Sc50LL4HQaCQlRIh
 RUN if [ -n "$GDRIVE_COOKIES_FILE_ID" ]; then \
         echo "Downloading cookies from Google Drive (file_id=$GDRIVE_COOKIES_FILE_ID)..." && \
         pip install --quiet gdown && \
