@@ -74,19 +74,19 @@ def download_and_cut_direct(
         outtmpl = str(output_path / '%(title).50s.%(ext)s')
 
     # ── Primary command (android client) ─────────────────────────────
-    # Build the format string: prefer separate video+audio up to 1080p,
-    # fall back to any single stream.
-    fmt = 'bestvideo[height<=1080]+bestaudio/best'
+    # Use a single combined stream (avoids DASH issues with android client/cookies).
+    fmt = 'bestvideo*+bestaudio/best'
 
     cmd = [
         sys.executable, '-m', 'yt_dlp',
         # '--quiet',
         '--no-warnings',
-        '--extractor-args', 'youtube:player_client=android',
+        '--extractor-args', 'youtube:player_client=web,android_vr,tv_downgraded;player_skip=webpage',
         '--download-sections', f'*{start_ts}-{end_ts}',
         '--force-keyframes-at-cut',
         '--postprocessor-args', f'ffmpeg:-t {duration}',
         '-f', fmt,
+        '-S', 'res:1080',
         '--output', outtmpl,
         '--merge-output-format', 'mp4',
         url,
@@ -112,6 +112,7 @@ def download_and_cut_direct(
                 '--force-keyframes-at-cut',
                 '--postprocessor-args', f'ffmpeg:-t {duration}',
                 '-f', fmt,
+                '-S', 'res:1080',
                 '--output', outtmpl,
                 '--merge-output-format', 'mp4',
                 url,
