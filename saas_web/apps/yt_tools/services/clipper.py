@@ -75,7 +75,7 @@ def download_and_cut_direct(
 
     # ── Primary command (android client) ─────────────────────────────
     # Use a single combined stream (avoids DASH issues with android client/cookies).
-    fmt = 'bestvideo*+bestaudio/best'
+    fmt = 'best[height<=1080]'
 
     cmd = [
         sys.executable, '-m', 'yt_dlp',
