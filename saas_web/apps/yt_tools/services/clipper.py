@@ -74,9 +74,9 @@ def download_and_cut_direct(
         outtmpl = str(output_path / '%(title).50s.%(ext)s')
 
     # ── Primary command (android client) ─────────────────────────────
-    # Build the format string: try progressive first (more reliable with ffmpeg
-    # post-processor), fall back to DASH merge.
-    fmt = 'bestvideo[height<=1080]+bestaudio/best[height<=1080]'
+    # Build the format string: prefer separate video+audio up to 1080p,
+    # fall back to any single stream.
+    fmt = 'bestvideo[height<=1080]+bestaudio/best'
 
     cmd = [
         sys.executable, '-m', 'yt_dlp',
